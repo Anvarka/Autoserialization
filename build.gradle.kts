@@ -2,44 +2,53 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     java
-    kotlin("jvm") version "1.7.10"
+    kotlin("jvm") version "1.7.10" apply false
     application
 }
 
 group = "org.itmo.java"
 version = "1.0-SNAPSHOT"
 
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation("org.jetbrains:annotations:23.0.0")
-    testImplementation(platform("org.junit:junit-bom:5.8.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-}
-
-sourceSets {
-    main {
-        java.setSrcDirs(listOf("src"))
-        resources.setSrcDirs(listOf("resources"))
+subprojects {
+    apply {
+        plugin("java")
+        plugin("application")
+        plugin("kotlin")
     }
-    test {
-        java.setSrcDirs(listOf("test"))
-        resources.setSrcDirs(listOf("testResources"))
+
+    repositories {
+        mavenCentral()
     }
-}
 
-tasks.test {
-    useJUnitPlatform()
-}
+    dependencies {
+        implementation("org.jetbrains:annotations:23.0.0")
+        testImplementation(platform("org.junit:junit-bom:5.8.0"))
+        testImplementation("org.junit.jupiter:junit-jupiter")
+    }
 
-java.toolchain {
-    languageVersion.set(JavaLanguageVersion.of(17))
-}
+    sourceSets {
+        main {
+            java.setSrcDirs(listOf("src"))
+            resources.setSrcDirs(listOf("resources"))
+        }
+        test {
+            java.setSrcDirs(listOf("test"))
+            resources.setSrcDirs(listOf("testResources"))
+        }
+    }
 
-val compileKotlin: KotlinCompile by tasks
+    tasks.test {
+        useJUnitPlatform()
+    }
 
-compileKotlin.kotlinOptions {
-    freeCompilerArgs += "-Xuse-k2"
+    java.toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+
+    val compileKotlin: KotlinCompile by tasks
+
+    compileKotlin.kotlinOptions {
+        freeCompilerArgs += "-Xuse-k2"
+    }
+
 }

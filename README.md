@@ -1,47 +1,146 @@
-# Репозиторий с материалами по курсу Java
+# Autoserialization
 
-## Порядок сдачи заданий
+## Идея
 
-0. В своём форке создать две метки для реквестов (_Issues_ -> _Labels_)
-- `Ready to check` (синяя)
-- `Wait for fixes` (оранжевая)
-- Также для каждого нового задания нужно будет добавлять по метке вида `task-N` или `control-N`
+В данной работе вам предстоит реализовать небольшой фреймфорк для автоматической (де)сериализации объектов, наподобие `@Serializable` в Java.
 
-1. Сделать форк данного репозитория и добавить основной репозиторий к своему как `upstream`.
-    Дать `demiurg906` и своему проверяющему (см таблицу) доступ к этому форку (с уровнем прав не ниже Developer)
+С точки зрения пользователя это выглядит следующим образом. Есть следующие классы и интерфейсы:
 
-```
-git remote add upstream git@gitlab.com:demiurg906/java-2-2022.git
-```
+```java
+public interface Letter {}
 
-2. Домашки выкладываются в ветки вида `task-N-title`, контрольные в ветки `control-N`
-
-3. Для сдачи задания требуется добавить ветку из основного репозитория в свой 
-
-```
-git fetch upstream
-git checkout upstream/task-N-title
-git checkout -b task-N-title
-git push origin task-N-title
+@Retention(RetentionPolicy.SOURCE)
+@Target(ElementType.TYPE)
+public @interface Letterize {
+}
 ```
 
-4. Создать ветку `task-N-title-dev`, в которую добавляется решение
+Пользователь помечает класс, объекты которого будет необходимо сериализовывать/десериализовывать аннотацией `@Letterize` и наследует от интерфейса `Letter`:
 
+```java
+@Letterize
+class Person implements Letter {
+    public int age;
+    public String name;
+}
 ```
-git checkout -b task-N-title-dev
 
+После этого, становится возможно (де)сериализовывать объекты этого класса следующим образом:
+
+```java
+private void showcaseSend() throws IOException {
+    DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
+    LetterSerializer serializer = new LetterSerializer(dataOutputStream);
+
+    Person person = new Person();
+    person.age = 24;
+    person.name = "John Doe";
+
+   
+    serializer.serializePerson(person);
+}
+
+
+private void showcaseReceive() throws IOException {
+    DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+    LetterDeserializer deserializer = new LetterDeserializer(dataOutputStream);   
+
+    Person person = deserializer.deserializePerson();
+
+    assertEquals(24, person.age);
+    assertEquals("John Doe", person.name);
+}
 ```
 
-5. При готовности задания запушить `dev` ветку и создать Merge Request. 
-    Заголовок MR должен быть в следующем виде: **Фамилия Имя. Task N** или **Фамилия Имя. Control N** 
-    В данном реквесте добавить проверяющего в качестве _Assignee_, добавить метку `Ready to check` и метку `task-N` или `control-N`
+## Реализация
 
-6. После проверки MR либо закрывается (если всё хорошо) или на него ставится метка `Wait for fixes`, если требуются исправления
+Для этого вам необходимо будет реализовать annotation processor, который будет находить классы, помеченные аннотацией `@Letterize` и генерировать два класса `LetterSerializer` и `LetterDeserializer`, в которых будут методы для сериализации и десериализации всех классов, помеченных аннотацией `@Letterize`.
 
-7. Исправления добавляются в ту же ветку в тот же самый MR (новый MR создавать не нужно). После отправки всех исправлений нужно снова выставить метку `Ready to check`. **Никакие другие метки трогать не нужно**
+Например, для примера выше после работы anotation processor'а, будут сгенерированны следующие классы:
 
-- если у задания есть мягкий дедлайн, то если вы сдадите что-то к нему, то фидбек появится в течение пары дней после мягкого делайна (чуть больше, если задание большое)
-- после сдачи к жёсткому делайну задание проверяется, после чего у вас есть неделя (начиная от момента проверки) на то, чтобы прислать исправления (если требуется). После этой недели исправления не принимаются
-- MR не в ту ветку не проверяются
-- MR без выставленной метки `Ready to check` не проверяются
+```java
+public class Serializer {
+    private final DataOutputStream output;
 
+    public Serializer(DataOutputStream output) {
+        this.output = output;    
+    }
+
+    public void serializePerson(Person person) throws IOException {
+        output.writeInt(person.age);
+        output.writeUTF(person.name);    
+    }
+}
+
+public class Deserializer {
+    private final DataInputStream input;
+
+    public Deserializer(DataInputStream input) {
+        this.input = input;    
+    }
+
+    public Person desrializePerson() throws IOException {
+        Person person = new Person();
+        person.age = input.readInt();
+        person.name = input.readUTF();
+        return person;    
+    }
+}
+```
+
+В данном задании *запрещается* пользоваться:
+- `Object*Stream`
+- Сторонними библиотеками для кодогенерации, за исключением `javapoet` (уже добавлена в зависимости проекта)
+- Сторонними библиотеками для (де)сериализации
+
+
+При этом, разрешается просить у пользователя подключить какие-то дополнительные утилитные классы из вашей библиотеки (это может быть полезно, чтобы упростить генерируемый код).
+
+
+**Общие ограничения для всех заданий:**
+- Все поля публичные, не финальные
+- В случае, если нарушен формат сообщения, бросается `IllegalLetterFormatException`
+- Помните, что классы могут наследоваться!
+
+## Задание №1 (3 балла)
+
+Реализовать (де)серилазиацию для простейших случаев:
+- Классы состоят только из полей примитивных типов + `String` (т.е. вложенные сообщения поддерживать в данном задании не требуется)
+- Наличие данных для всех полей обязательно
+
+## Задание №2 (3 балла)
+
+Поддержать вложенные сообщения:
+- Класс может содержать поля reference-типов.
+- Все такие поля должны быть помечены `@Letterize` и отнаследованы от интерфейса `Letter`, в противном случае компиляция должна завершиться с ошибкой, в которой описывается, для какого класса это требование было нарушено.
+- Циклические структуры данных не поддерживаются, в противном случае компиляция должна завершиться с ошибкой.
+- Помните, что значением reference-поля может быть `null`!
+
+## Задание №3 (3 балла)
+
+Поддержать циклические структуры данных
+
+## Задание №4 (3 балла)
+
+Поддержать опциональные поля. Опциональное поле помечено аннотацией `@LetterizeOptional` и *не обязано* присутствовать в десериализуемом сообщении.
+Если при десериализации сообщения такое поле не было обнаружено во входном потоке, то это не приводит к `IllegalLetterFormatException`, а вместо этого оно заполняется дефолтным значением:
+- `0` для целочисленных типов
+- `0.0` для вещественных типов
+- `""` (пустая строка) для `String`
+- `null` для reference-типов
+
+Пояснение: такая ситуация может случиться в следующем случае:
+1. однажды был создан и сериализован (на диск, например) некоторый класс
+2. в класс было добавлено поле с аннотацией `@LetterizeOptional`, после чего он был заного скомпилированн
+3. этот обновлённый класс десериализуется из дампа, созданного в п.1
+
+## Задание №5 (2 балла)
+
+Добавить в `Serializer` и `Deserializer` методы `void serialize(Class<?> clazz, Object object)` и `Object deserialize(Class<?> clazz)` соответсвенно, которые внутри себя будут вызывать соответствующий `serialize*` и `deserialize*` в зависимости от переданного `Class<?>` или бросать `IllegalArgumentException`, если для переданный класс не имеет импементации (де)сериализации
+
+# Баллы и сроки
+
+За выполнение всех частей задания можно получить 14 баллов из 10-ти
+
+Мягкий дедлайн: 30.10.22, 23:59
+Жёсткий дедлайн: 06.11.22, 23:59
