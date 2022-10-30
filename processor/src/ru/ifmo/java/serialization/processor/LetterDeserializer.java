@@ -18,7 +18,6 @@ public class LetterDeserializer {
     TypeSpec.Builder classBuilder = TypeSpec.classBuilder("Deserializer")
             .addModifiers(Modifier.PUBLIC)
             .addField(DataInputStream.class, Constants.INPUT, Modifier.PUBLIC, Modifier.FINAL);
-
     public static Set<String> elementsWithOptionalAnnotation = new HashSet<>();
 
     public LetterDeserializer(Types types, RoundEnvironment roundEnv) {
@@ -33,8 +32,18 @@ public class LetterDeserializer {
         classBuilder.addField(optionalListField);
     }
 
+    public TypeSpec get() {
+        return classBuilder.build();
+    }
+
+    public void getOptionalFields() {
+        for (Element e : roundEnv.getElementsAnnotatedWith(LetterizeOptional.class)) {
+            String parentClass = e.getEnclosingElement().getSimpleName().toString();
+            elementsWithOptionalAnnotation.add(parentClass + "." + e.getSimpleName());
+        }
+    }
+
     public void createDeserializeConstructor() {
-//        Factory.createConstructor(DataInputStream.class, Constants.INPUT, classBuilder);
         MethodSpec.Builder constructor = MethodSpec.constructorBuilder()
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(DataInputStream.class, Constants.INPUT)
@@ -46,12 +55,6 @@ public class LetterDeserializer {
             constructor.addStatement("optionalElements.add($S)", s);
         }
         classBuilder.addMethod(constructor.build());
-
-
-    }
-
-    public TypeSpec get() {
-        return classBuilder.build();
     }
 
     public void createDeserializeMethod(Element annotatedElement, PackageElement pack) {
@@ -69,7 +72,7 @@ public class LetterDeserializer {
         deserializeMethod.addStatement("$N $N = new $N()", classNameForDeserialize.toString(), annotatedElement.getSimpleName().toString().toLowerCase(),
                 classNameForDeserialize.toString());
 
-        getFieldsFromClass(deserializeMethod, annotatedElement);
+        recursiveMethodToParent(deserializeMethod, annotatedElement, classNameForDeserialize.toString().toLowerCase());
         deserializeMethod.addStatement("return $N", annotatedElement.getSimpleName().toString().toLowerCase());
 
         classBuilder.addMethod(deserializeMethod.build());
@@ -94,33 +97,34 @@ public class LetterDeserializer {
         classBuilder.addMethod(deserializeMethod.build());
     }
 
-    public void getFieldsFromClass(MethodSpec.Builder deserializeMethod,
-                                   Element annotatedClass
-    ) {
-        for (Element fieldOfAnnotatedClass : annotatedClass.getEnclosedElements()) {
-            if (fieldOfAnnotatedClass.getKind() != ElementKind.FIELD) {
-                continue;
+    public void recursiveMethodToParent(MethodSpec.Builder deserializeMethod, Element currentAnnotatedClass, String classNameForSerializationLowerCase) {
+        while (!Object.class.getSimpleName().contentEquals(typeUtils.asElement(currentAnnotatedClass.asType()).getSimpleName())) {
+            for (Element element : currentAnnotatedClass.getEnclosedElements()) {
+                if (element.getKind() != ElementKind.FIELD) {
+                    continue;
+                }
+                String typeOfField = Factory.getTypeOfField(element);
+                optionalTryCatchWrapper(deserializeMethod, typeOfField, currentAnnotatedClass, element, classNameForSerializationLowerCase);
             }
-            String typeOfField = Factory.getTypeOfField(fieldOfAnnotatedClass);
-            optionalTryCatchWrapper(deserializeMethod, typeOfField, annotatedClass, fieldOfAnnotatedClass);
+            TypeElement elem = (TypeElement) currentAnnotatedClass;
+            currentAnnotatedClass = typeUtils.asElement(elem.getSuperclass());
         }
     }
 
-    public void optionalTryCatchWrapper(MethodSpec.Builder deserializeMethod, String typeOfField, Element annotatedClass, Element fieldOfAnnotatedClass) {
-        String classNameForDeserializeLowerCase = annotatedClass.getSimpleName().toString().toLowerCase();
+    public void optionalTryCatchWrapper(MethodSpec.Builder deserializeMethod, String typeOfField, Element annotatedClass, Element fieldOfAnnotatedClass, String classNameForDeserializationLowerCase) {
         deserializeMethod.beginControlFlow("try");
 
         if (typeOfField.equals("")) {
-            methodOfReferenceType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass);
-        } else{
-            methodOfPrimitiveType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass, typeOfField);
+            methodForReferenceType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass);
+        } else {
+            methodForPrimitiveType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass, typeOfField, classNameForDeserializationLowerCase);
         }
 
         deserializeMethod.endControlFlow();
         deserializeMethod.beginControlFlow("catch(Exception exception)");
         deserializeMethod.beginControlFlow("if(optionalElements.contains($S))",
                 annotatedClass.getSimpleName() + "." + fieldOfAnnotatedClass.getSimpleName());
-        deserializeMethod.addStatement("$N.$N = $N", classNameForDeserializeLowerCase,
+        deserializeMethod.addStatement("$N.$N = $N", classNameForDeserializationLowerCase,
                 fieldOfAnnotatedClass.getSimpleName(), Factory.getDefaultValue(typeUtils, fieldOfAnnotatedClass));
         deserializeMethod.endControlFlow();
 
@@ -130,15 +134,12 @@ public class LetterDeserializer {
         deserializeMethod.endControlFlow();
     }
 
-    public void methodOfPrimitiveType(MethodSpec.Builder deserializeMethod, Element annotatedElement, Element e, String typeForRead){
-
-        String classNameForDeserializeLowerCase = annotatedElement.getSimpleName().toString().toLowerCase();
-
-        deserializeMethod.addStatement("$N.$N = input.read$N()", classNameForDeserializeLowerCase,
+    public void methodForPrimitiveType(MethodSpec.Builder deserializeMethod, Element annotatedElement, Element e, String typeForRead, String classNameForSerializationLowerCase) {
+        deserializeMethod.addStatement("$N.$N = input.read$N()", classNameForSerializationLowerCase,
                 e.getSimpleName(), typeForRead);
     }
 
-    public void methodOfReferenceType(MethodSpec.Builder deserializeMethod, Element annotatedElement, Element e) {
+    public void methodForReferenceType(MethodSpec.Builder deserializeMethod, Element annotatedElement, Element e) {
         String classNameForDeserializeLowerCase = annotatedElement.getSimpleName().toString().toLowerCase();
 
         deserializeMethod.addStatement("boolean isNull = input.readBoolean()");
@@ -153,12 +154,5 @@ public class LetterDeserializer {
                 e.getSimpleName(),
                 typeUtils.asElement(e.asType()).getSimpleName());
         deserializeMethod.endControlFlow();
-    }
-
-    public void getOptionalFields() {
-        for (Element e : roundEnv.getElementsAnnotatedWith(LetterizeOptional.class)) {
-            String parentClass = e.getEnclosingElement().getSimpleName().toString();
-            elementsWithOptionalAnnotation.add(parentClass + "." + e.getSimpleName());
-        }
     }
 }

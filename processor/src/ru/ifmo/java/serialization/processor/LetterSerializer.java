@@ -2,7 +2,6 @@ package ru.ifmo.java.serialization.processor;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 
 import javax.lang.model.element.*;
@@ -13,13 +12,17 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class LetterSerializer {
-    TypeSpec.Builder classBuilder = TypeSpec.classBuilder("Serializer")
+    private final TypeSpec.Builder classBuilder = TypeSpec.classBuilder("Serializer")
             .addModifiers(Modifier.PUBLIC)
             .addField(DataOutputStream.class, Constants.OUTPUT, Modifier.PUBLIC, Modifier.FINAL);
-    private Types typeUtils;
+    private final Types typeUtils;
 
     public LetterSerializer(Types types) {
         this.typeUtils = types;
+    }
+
+    public TypeSpec get() {
+        return classBuilder.build();
     }
 
     public void createSerializeConstructor() {
@@ -30,17 +33,16 @@ public class LetterSerializer {
         if (!Factory.isInheritedFromLetter(annotatedElement, typeUtils)) {
             throw new RuntimeException("class " + annotatedElement.getSimpleName() + " does not inherit from Letter");
         }
-
         Name classNameForSerialize = annotatedElement.getSimpleName();
 
         MethodSpec.Builder wrapperForMethod = MethodSpec.methodBuilder("serialize" + classNameForSerialize)
                 .addModifiers(Modifier.PUBLIC)
                 .addException(IOException.class)
-                .addParameter(ClassName.get(pack.toString(), annotatedElement.getSimpleName().toString()),
-                        annotatedElement.getSimpleName().toString().toLowerCase())
+                .addParameter(ClassName.get(pack.toString(), classNameForSerialize.toString()),
+                        classNameForSerialize.toString().toLowerCase())
                 .addStatement("$T<$T> recSet = new $T<>()", Set.class, Name.class, ClassName.get("java.util",
                         HashSet.class.getSimpleName()))
-                .addStatement("serialize$N($N, recSet)", annotatedElement.getSimpleName(), annotatedElement.getSimpleName().toString().toLowerCase());
+                .addStatement("serialize$N($N, recSet)", classNameForSerialize, classNameForSerialize.toString().toLowerCase());
 
         classBuilder.addMethod(wrapperForMethod.build());
         // overload for serialize method
@@ -52,9 +54,8 @@ public class LetterSerializer {
                         classNameForSerialize.toString().toLowerCase())
                 .addParameter(Set.class, "recSet");
 
-//        MethodSpec res = getFieldsFromSerializeClass(annotatedElement, method);
-        String classNameForSerializationLowerCase = annotatedElement.getSimpleName().toString().toLowerCase();
-        recursiveMethod(method, annotatedElement, classNameForSerializationLowerCase);
+        String classNameForSerializationLowerCase = classNameForSerialize.toString().toLowerCase();
+        recursiveMethodToParent(method, annotatedElement, classNameForSerializationLowerCase);
         classBuilder.addMethod(method.build());
     }
 
@@ -75,28 +76,7 @@ public class LetterSerializer {
         classBuilder.addMethod(serializeMethod.build());
     }
 
-    public TypeSpec get() {
-        return classBuilder.build();
-    }
-
-//    public MethodSpec getFieldsFromSerializeClass(Element annotatedClass,
-//                                                  MethodSpec.Builder serializeMethod) {
-//
-//        for (Element element : annotatedClass.getEnclosedElements()) {
-//            if (element.getKind() != ElementKind.FIELD) {
-//                continue;
-//            }
-//            String typeOfField = Factory.getTypeOfField(element);
-//            if (typeOfField.equals("")) {
-//                methodForReferenceObject(serializeMethod, annotatedClass, element);
-//                continue;
-//            }
-//            methodForPrimitiveObject(serializeMethod, annotatedClass, element, typeOfField, classNameForSerializationLowerCase);
-//        }
-//        return serializeMethod.build();
-//    }
-
-    public void recursiveMethod(MethodSpec.Builder serializeMethod, Element currentAnnotatedClass, String classNameForSerializationLowerCase) {
+    public void recursiveMethodToParent(MethodSpec.Builder serializeMethod, Element currentAnnotatedClass, String classNameForSerializationLowerCase) {
         while (!Object.class.getSimpleName().contentEquals(typeUtils.asElement(currentAnnotatedClass.asType()).getSimpleName())) {
             for (Element element : currentAnnotatedClass.getEnclosedElements()) {
                 if (element.getKind() != ElementKind.FIELD) {
