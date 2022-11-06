@@ -26,12 +26,15 @@ public class SerializationTest {
         // First stage
         E e = new E();
         e.x = 10;
+        e.cat = 120;
         new Serializer(new DataOutputStream(new FileOutputStream(file))).serializeE(e);
 
         // Second stage
 //        E e = new Deserializer(new DataInputStream(new FileInputStream(file))).deserializeE();
 //        assertEquals(e.x, 10);
 //        assertEquals(e.name, "");
+//        assertEquals(e.age, 0);
+//        assertEquals(e.male, false);
     }
 
     @Test
@@ -69,4 +72,18 @@ public class SerializationTest {
         assertEquals(deserializedD1.d, deserializedD2);
         assertEquals(deserializedD2.d, deserializedD1);
     }
+
+    @Test
+    public void testNewSerializeMethod() throws IOException {
+        Person person = new Person();
+        person.age = 10;
+        person.name = "Peter";
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        new Serializer(new DataOutputStream(outputStream)).serialize(Person.class, person);
+
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+        assertEquals(person, new Deserializer(new DataInputStream(inputStream)).deserialize(Person.class));
+    }
+
 }

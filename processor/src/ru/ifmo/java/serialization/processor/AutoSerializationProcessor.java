@@ -2,6 +2,7 @@ package ru.ifmo.java.serialization.processor;
 
 
 import com.squareup.javapoet.JavaFile;
+import ru.ifmo.java.serialization.IllegalLetterFormatException;
 import ru.ifmo.java.serialization.Letterize;
 
 import javax.annotation.processing.*;
@@ -33,18 +34,22 @@ public class AutoSerializationProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         // (de)serialize constructors init
-        LetterSerializer serializerFactory = new LetterSerializer(typeUtils);
-        serializerFactory.createSerializeConstructor();
-        LetterDeserializer deserializerFactory = new LetterDeserializer(typeUtils, roundEnv);
-        deserializerFactory.createDeserializeConstructor();
-
-        serializerFactory.getSerializeMethod();
+        SerializerFactory serializerFactory = new SerializerFactory(typeUtils);
+        DeserializerFactory deserializerFactory = new DeserializerFactory(typeUtils, roundEnv);
+        serializerFactory.createConstructor();
+        deserializerFactory.createConstructor();
 
         for (Element annotatedClass : roundEnv.getElementsAnnotatedWith(Letterize.class)) {
+            if (!Utils.isInheritedFromLetter(annotatedClass, typeUtils)) {
+                throw new IllegalLetterFormatException("class " + annotatedClass.getSimpleName() + " does not inherit from Letter");
+            }
             PackageElement packageOfAnnotatedClass = elementUtils.getPackageOf(annotatedClass);
-            serializerFactory.createSerializeMethod(annotatedClass, packageOfAnnotatedClass);
-            deserializerFactory.createDeserializeMethod(annotatedClass, packageOfAnnotatedClass);
+            serializerFactory.createMethod(annotatedClass, packageOfAnnotatedClass);
+            deserializerFactory.createMethod(annotatedClass, packageOfAnnotatedClass);
         }
+        // task 5
+        serializerFactory.getUniversalMethod();
+        deserializerFactory.getUniversalMethod();
 
         JavaFile serializeFile = JavaFile.builder("ru.ifmo.java.serialization", serializerFactory.get()).build();
         JavaFile deserializeFile = JavaFile.builder("ru.ifmo.java.serialization", deserializerFactory.get()).build();
