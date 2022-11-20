@@ -173,7 +173,7 @@ public class DeserializerFactory extends BaseFactory {
                 .addStatement("return obj")
                 .endControlFlow()
                 .beginControlFlow("catch(Exception exception)")
-                .addStatement("throw new $T()", IllegalLetterFormatException.class)
+                .addStatement("throw new $T(exception.getMessage())", IllegalArgumentException.class)
                 .endControlFlow();
 
         classBuilder.addMethod(deserializeMethod.build());

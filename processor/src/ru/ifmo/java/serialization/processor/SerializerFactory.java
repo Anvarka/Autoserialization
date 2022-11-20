@@ -134,7 +134,7 @@ public class SerializerFactory extends BaseFactory {
                 .addStatement("method.invoke(this, object)")
                 .endControlFlow()
                 .beginControlFlow("catch(Exception exception)")
-                .addStatement("throw  new IllegalLetterFormatException(\"no class\")")
+                .addStatement("throw  new IllegalArgumentException(exception.getMessage())")
                 .endControlFlow();
 
         classBuilder.addMethod(serializeMethod.build());
