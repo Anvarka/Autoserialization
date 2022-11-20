@@ -27,10 +27,20 @@ public class DeserializerFactory extends BaseFactory {
         FieldSpec optionalListField = Utils.createSet("optionalElements", String.class);
         FieldSpec listOfObjects = Utils.createList("listOfObjects", Object.class);
         FieldSpec seenNumbers = Utils.createList("seenNumbers", Integer.class);
+        FieldSpec booleanOpt = FieldSpec.builder(Boolean.class, "boolOptional")
+                .addModifiers(Modifier.PUBLIC)
+                .initializer("true")
+                .build();
+
+        FieldSpec nameObject = FieldSpec.builder(String.class, "nameObject")
+                .addModifiers(Modifier.PUBLIC)
+                .build();
 
         classBuilder.addField(optionalListField);
         classBuilder.addField(listOfObjects);
         classBuilder.addField(seenNumbers);
+        classBuilder.addField(booleanOpt);
+        classBuilder.addField(nameObject);
     }
 
     @Override
@@ -100,7 +110,18 @@ public class DeserializerFactory extends BaseFactory {
         if (typeOfField.equals("")) {
             methodForReferenceType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass);
         } else {
-            methodForPrimitiveType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass, typeOfField, classNameForDeserializationLowerCase);
+            if (typeOfField.equals("UTF")) {
+                deserializeMethod.addStatement("boolean isNull = input.readBoolean()");
+                deserializeMethod.beginControlFlow("if(isNull == true)");
+                deserializeMethod.addStatement("$N.$N = null", classNameForDeserializationLowerCase, fieldOfAnnotatedClass.getSimpleName().toString());
+                deserializeMethod.endControlFlow();
+
+                deserializeMethod.beginControlFlow("else");
+                methodForPrimitiveType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass, typeOfField, classNameForDeserializationLowerCase);
+                deserializeMethod.endControlFlow();
+            } else {
+                methodForPrimitiveType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass, typeOfField, classNameForDeserializationLowerCase);
+            }
         }
 
         deserializeMethod.endControlFlow();
@@ -113,6 +134,65 @@ public class DeserializerFactory extends BaseFactory {
 
         deserializeMethod.beginControlFlow("else");
         deserializeMethod.addStatement("throw new $T()", IllegalLetterFormatException.class);
+        deserializeMethod.endControlFlow();
+        deserializeMethod.endControlFlow();
+    }
+
+    public void workWithFieldsOfClass2(MethodSpec.Builder deserializeMethod,
+                                       String typeOfField,
+                                       Element annotatedClass,
+                                       Element fieldOfAnnotatedClass,
+                                       String classNameForDeserializationLowerCase) {
+        deserializeMethod.beginControlFlow("if(boolOptional)");
+        deserializeMethod.addStatement("nameObject = input.readUTF()");
+        deserializeMethod.endControlFlow();
+
+
+        deserializeMethod.beginControlFlow("if(!nameObject.equals(\"$N.$N\"))",
+                classNameForDeserializationLowerCase,
+                fieldOfAnnotatedClass.getSimpleName().toString());
+        deserializeMethod.addStatement("boolOptional = false");
+        deserializeMethod.beginControlFlow("if(!optionalElements.contains($S))",
+                annotatedClass.getSimpleName() + "." + fieldOfAnnotatedClass.getSimpleName());
+        deserializeMethod.addStatement("throw new $T()", IllegalLetterFormatException.class);
+        deserializeMethod.endControlFlow();
+        deserializeMethod.addStatement("$N.$N = $N", classNameForDeserializationLowerCase,
+                fieldOfAnnotatedClass.getSimpleName(), Utils.getDefaultValue(typeUtils, fieldOfAnnotatedClass));
+        deserializeMethod.endControlFlow();
+        deserializeMethod.beginControlFlow("else");
+        deserializeMethod.addStatement("boolOptional = true");
+
+        // optional try catch wrapper
+        deserializeMethod.beginControlFlow("try");
+
+        if (typeOfField.equals("")) {
+            methodForReferenceType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass);
+        } else {
+            if (typeOfField.equals("UTF")) {
+                deserializeMethod.addStatement("boolean isNull = input.readBoolean()");
+                deserializeMethod.beginControlFlow("if(isNull == true)");
+                deserializeMethod.addStatement("$N.$N = null", classNameForDeserializationLowerCase, fieldOfAnnotatedClass.getSimpleName().toString());
+                deserializeMethod.endControlFlow();
+
+                deserializeMethod.beginControlFlow("else");
+                methodForPrimitiveType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass, typeOfField, classNameForDeserializationLowerCase);
+                deserializeMethod.endControlFlow();
+            } else {
+                methodForPrimitiveType(deserializeMethod, annotatedClass, fieldOfAnnotatedClass, typeOfField, classNameForDeserializationLowerCase);
+            }
+        }
+
+        deserializeMethod.endControlFlow();
+        deserializeMethod.beginControlFlow("catch(Exception exception)");
+        deserializeMethod.beginControlFlow("if(optionalElements.contains($S))",
+                annotatedClass.getSimpleName() + "." + fieldOfAnnotatedClass.getSimpleName());
+        deserializeMethod.addStatement("$N.$N = $N", classNameForDeserializationLowerCase,
+                fieldOfAnnotatedClass.getSimpleName(), Utils.getDefaultValue(typeUtils, fieldOfAnnotatedClass));
+        deserializeMethod.endControlFlow();
+
+        deserializeMethod.beginControlFlow("else");
+        deserializeMethod.addStatement("throw new $T()", IllegalLetterFormatException.class);
+        deserializeMethod.endControlFlow();
         deserializeMethod.endControlFlow();
         deserializeMethod.endControlFlow();
     }

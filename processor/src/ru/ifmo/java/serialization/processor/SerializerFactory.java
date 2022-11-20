@@ -63,7 +63,48 @@ public class SerializerFactory extends BaseFactory {
         if (typeOfField.equals("")) {
             methodForReferenceType(serializeMethod, annotatedClass, fieldOfAnnotatedClass);
         } else {
-            methodForPrimitiveType(serializeMethod, classNameForSerializationLowerCase, fieldOfAnnotatedClass, typeOfField, "output.write$N($N.$N)");
+            if (typeOfField.equals("UTF")) {
+                serializeMethod.beginControlFlow("if($N.$N == null)",
+                        classNameForSerializationLowerCase,
+                        fieldOfAnnotatedClass.getSimpleName().toString());
+                serializeMethod.addStatement("output.writeBoolean(true)");
+                serializeMethod.endControlFlow();
+
+                serializeMethod.beginControlFlow("else");
+                serializeMethod.addStatement("output.writeBoolean(false)");
+                methodForPrimitiveType(serializeMethod, classNameForSerializationLowerCase, fieldOfAnnotatedClass, typeOfField, "output.write$N($N.$N)");
+                serializeMethod.endControlFlow();
+            } else {
+                methodForPrimitiveType(serializeMethod, classNameForSerializationLowerCase, fieldOfAnnotatedClass, typeOfField, "output.write$N($N.$N)");
+            }
+        }
+    }
+
+    public void workWithFieldsOfClass2(MethodSpec.Builder serializeMethod,
+                                       String typeOfField,
+                                       Element annotatedClass,
+                                       Element fieldOfAnnotatedClass,
+                                       String classNameForSerializationLowerCase) {
+        serializeMethod.addStatement("output.writeUTF(\"$N.$N\")",
+                classNameForSerializationLowerCase,
+                fieldOfAnnotatedClass.getSimpleName().toString());
+        if (typeOfField.equals("")) {
+            methodForReferenceType(serializeMethod, annotatedClass, fieldOfAnnotatedClass);
+        } else {
+            if (typeOfField.equals("UTF")) {
+                serializeMethod.beginControlFlow("if($N.$N == null)",
+                        classNameForSerializationLowerCase,
+                        fieldOfAnnotatedClass.getSimpleName().toString());
+                serializeMethod.addStatement("output.writeBoolean(true)");
+                serializeMethod.endControlFlow();
+
+                serializeMethod.beginControlFlow("else");
+                serializeMethod.addStatement("output.writeBoolean(false)");
+                methodForPrimitiveType(serializeMethod, classNameForSerializationLowerCase, fieldOfAnnotatedClass, typeOfField, "output.write$N($N.$N)");
+                serializeMethod.endControlFlow();
+            } else {
+                methodForPrimitiveType(serializeMethod, classNameForSerializationLowerCase, fieldOfAnnotatedClass, typeOfField, "output.write$N($N.$N)");
+            }
         }
     }
 

@@ -48,6 +48,12 @@ public abstract class BaseFactory {
                                                Element fieldOfAnnotatedClass,
                                                String classNameForDeserializationLowerCase);
 
+    public abstract void workWithFieldsOfClass2(MethodSpec.Builder deserializeMethod,
+                                               String typeOfField,
+                                               Element annotatedClass,
+                                               Element fieldOfAnnotatedClass,
+                                               String classNameForDeserializationLowerCase);
+
     public void methodForReferenceType(MethodSpec.Builder serializeMethod, Element annotatedClass, Element element) {
         Element fieldType = typeUtils.asElement(element.asType());
         if (!Utils.hasLetterizeAnnotation(fieldType) && !Utils.isInheritedFromLetter(fieldType, typeUtils)) {
@@ -57,6 +63,16 @@ public abstract class BaseFactory {
     }
 
     public void visitFieldsOfClassToParent(MethodSpec.Builder serializeMethod, Element currentAnnotatedClass, String classNameForSerializationLowerCase) {
+//        while (!Object.class.getSimpleName().contentEquals(typeUtils.asElement(currentAnnotatedClass.asType()).getSimpleName())) {
+//            for (Element fieldOfAnnotatedClass : currentAnnotatedClass.getEnclosedElements()) {
+//                if (fieldOfAnnotatedClass.getKind() != ElementKind.FIELD) {
+//                    continue;
+//                }
+//                if (fieldOfAnnotatedClass.getAnnotation(LetterizeOptional.class) != null) {
+//                    optionalElements1.add(Map.entry(currentAnnotatedClass, fieldOfAnnotatedClass));
+//                }
+//            }
+//        }
         while (!Object.class.getSimpleName().contentEquals(typeUtils.asElement(currentAnnotatedClass.asType()).getSimpleName())) {
             for (Element fieldOfAnnotatedClass : currentAnnotatedClass.getEnclosedElements()) {
                 if (fieldOfAnnotatedClass.getKind() != ElementKind.FIELD) {
@@ -77,7 +93,7 @@ public abstract class BaseFactory {
             String typeOfField = Utils.getTypeOfField(fieldOfAnnotatedClass.getValue());
             currentAnnotatedClass = fieldOfAnnotatedClass.getKey();
             String classNameForSerializationLowerCase2 = currentAnnotatedClass.getSimpleName().toString().toLowerCase();
-            workWithFieldsOfClass(serializeMethod, typeOfField, currentAnnotatedClass, fieldOfAnnotatedClass.getValue(), classNameForSerializationLowerCase2);
+            workWithFieldsOfClass2(serializeMethod, typeOfField, currentAnnotatedClass, fieldOfAnnotatedClass.getValue(), classNameForSerializationLowerCase2);
         }
         optionalElements1.clear();
     }
