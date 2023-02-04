@@ -1,10 +1,10 @@
 # Autoserialization
 
-## Идея
+## Idea
 
-В данной работе вам предстоит реализовать небольшой фреймфорк для автоматической (де)сериализации объектов, наподобие `@Serializable` в Java.
+In this work, you will implement a small framework for automatic (de)serialization of objects, like `@Serializable` in Java.
 
-С точки зрения пользователя это выглядит следующим образом. Есть следующие классы и интерфейсы:
+From the user's point of view, it looks like this. There are the following classes and interfaces:
 
 ```java
 public interface Letter {}
@@ -15,132 +15,126 @@ public @interface Letterize {
 }
 ```
 
-Пользователь помечает класс, объекты которого будет необходимо сериализовывать/десериализовывать аннотацией `@Letterize` и наследует от интерфейса `Letter`:
+The user marks the class whose objects will need to be serialized/deserialized with the `@Letterize` annotation and inherits from the `Letter` interface:
 
 ```java
-@Letterize
+@letterize
 class Person implements Letter {
-    public int age;
-    public String name;
+     public int age;
+     public Stringname;
 }
 ```
 
-После этого, становится возможно (де)сериализовывать объекты этого класса следующим образом:
+After that, it becomes possible to (de)serialize objects of this class like this:
 
 ```java
 private void showcaseSend() throws IOException {
-    DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
-    LetterSerializer serializer = new LetterSerializer(dataOutputStream);
+     DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
+     LetterSerializer serializer = new LetterSerializer(dataOutputStream);
 
-    Person person = new Person();
-    person.age = 24;
-    person.name = "John Doe";
+     Person person = new Person();
+     person.age = 24;
+     person.name = "John Doe";
 
    
-    serializer.serializePerson(person);
+     serializer.serializePerson(person);
 }
 
 
 private void showcaseReceive() throws IOException {
-    DataInputStream inputStream = new DataInputStream(socket.getInputStream());
-    LetterDeserializer deserializer = new LetterDeserializer(dataOutputStream);   
+     DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+     LetterDeserializer deserializer = new LetterDeserializer(dataOutputStream);
 
-    Person person = deserializer.deserializePerson();
+     Person person = deserializer.deserializePerson();
 
-    assertEquals(24, person.age);
-    assertEquals("John Doe", person.name);
+     assertEquals(24, person.age);
+     assertEquals("John Doe", person.name);
 }
 ```
 
-## Реализация
+## Implementation
 
-Для этого вам необходимо будет реализовать annotation processor, который будет находить классы, помеченные аннотацией `@Letterize` и генерировать два класса `LetterSerializer` и `LetterDeserializer`, в которых будут методы для сериализации и десериализации всех классов, помеченных аннотацией `@Letterize`.
+To do this, you will need to implement an annotation processor that will find classes marked with the `@Letterize` annotation and generate two classes `LetterSerializer` and `LetterDeserializer`, which will have methods for serializing and deserializing all classes marked with the `@Letterize` annotation.
 
-Например, для примера выше после работы anotation processor'а, будут сгенерированны следующие классы:
+For example, for the example above, after running the anotation processor, the following classes will be generated:
 
 ```java
 public class Serializer {
-    private final DataOutputStream output;
+     private final DataOutputStream output;
 
-    public Serializer(DataOutputStream output) {
-        this.output = output;    
-    }
+     public Serializer(DataOutputStream output) {
+         this.output = output;
+     }
 
-    public void serializePerson(Person person) throws IOException {
-        output.writeInt(person.age);
-        output.writeUTF(person.name);    
-    }
+     public void serializePerson(Person person) throws IOException {
+         output.writeInt(person.age);
+         output.writeUTF(person.name);
+     }
 }
 
 public class Deserializer {
-    private final DataInputStream input;
+     private final DataInputStream input;
 
-    public Deserializer(DataInputStream input) {
-        this.input = input;    
-    }
+     public Deserializer(DataInputStream input) {
+         this.input = input;
+     }
 
-    public Person desrializePerson() throws IOException {
-        Person person = new Person();
-        person.age = input.readInt();
-        person.name = input.readUTF();
-        return person;    
-    }
+     public Person deserializePerson() throws IOException {
+         Person person = new Person();
+         person.age = input.readInt();
+         person.name = input.readUTF();
+         return person;
+     }
 }
 ```
 
-В данном задании *запрещается* пользоваться:
+In this task it is *prohibited* to use:
 - `Object*Stream`
-- Сторонними библиотеками для кодогенерации, за исключением `javapoet` (уже добавлена в зависимости проекта)
-- Сторонними библиотеками для (де)сериализации
+- Third-party libraries for code generation, except for `javapoet` (already added to project dependencies)
+- Third-party libraries for (de)serialization
 
 
-При этом, разрешается просить у пользователя подключить какие-то дополнительные утилитные классы из вашей библиотеки (это может быть полезно, чтобы упростить генерируемый код).
+At the same time, it is allowed to ask the user to include some additional utility classes from your library (this can be useful to simplify the generated code).
 
 
-**Общие ограничения для всех заданий:**
-- Все поля публичные, не финальные
-- В случае, если нарушен формат сообщения, бросается `IllegalLetterFormatException`
-- Помните, что классы могут наследоваться!
+**Common limits for all jobs:**
+- All fields are public, not final
+- In case the message format is violated, an `IllegalLetterFormatException` is thrown
+- Remember that classes can be inherited!
 
-## Задание №1 (3 балла)
+## Task
 
-Реализовать (де)серилазиацию для простейших случаев:
-- Классы состоят только из полей примитивных типов + `String` (т.е. вложенные сообщения поддерживать в данном задании не требуется)
-- Наличие данных для всех полей обязательно
+Implement (de)serialization for the simplest cases:
+- Classes consist only of fields of primitive types + `String` (i.e. nested messages are not required to be supported in this task)
+- The presence of data for all fields is required
 
-## Задание №2 (3 балла)
+## Task
 
-Поддержать вложенные сообщения:
-- Класс может содержать поля reference-типов.
-- Все такие поля должны быть помечены `@Letterize` и отнаследованы от интерфейса `Letter`, в противном случае компиляция должна завершиться с ошибкой, в которой описывается, для какого класса это требование было нарушено.
-- Циклические структуры данных не поддерживаются, в противном случае компиляция должна завершиться с ошибкой.
-- Помните, что значением reference-поля может быть `null`!
+Support nested messages:
+- The class can contain fields of reference-types.
+- All such fields must be marked `@Letterize` and inherited from the `Letter` interface, otherwise the compilation must fail with an error describing which class this requirement was violated for.
+- Cyclic data structures are not supported, otherwise compilation should fail.
+- Remember that the value of a reference field can be `null`!
 
-## Задание №3 (3 балла)
+## Task
 
-Поддержать циклические структуры данных
+Support cyclic data structures
 
-## Задание №4 (3 балла)
+## Task
 
-Поддержать опциональные поля. Опциональное поле помечено аннотацией `@LetterizeOptional` и *не обязано* присутствовать в десериализуемом сообщении.
-Если при десериализации сообщения такое поле не было обнаружено во входном потоке, то это не приводит к `IllegalLetterFormatException`, а вместо этого оно заполняется дефолтным значением:
-- `0` для целочисленных типов
-- `0.0` для вещественных типов
-- `""` (пустая строка) для `String`
-- `null` для reference-типов
+Support optional fields. The optional field is annotated with the `@LetterizeOptional` annotation and is *not required* to be present in the message being deserialized.
+If such a field was not found in the input stream when the message was deserialized, then this does not result in an `IllegalLetterFormatException`, but instead it is filled with a default value:
+- `0` for integer types
+- `0.0` for real types
+- `""` (empty string) for `String`
+- `null` for reference types
 
-Пояснение: такая ситуация может случиться в следующем случае:
-1. однажды был создан и сериализован (на диск, например) некоторый класс
-2. в класс было добавлено поле с аннотацией `@LetterizeOptional`, после чего он был заного скомпилированн
-3. этот обновлённый класс десериализуется из дампа, созданного в п.1
+Explanation: this situation can happen in the following case:
+1. once a class was created and serialized (to disk, for example)
+2. a field with the `@LetterizeOptional` annotation was added to the class, after which it was recompiled
+3. this updated class is deserialized from the dump created in step 1
 
-## Задание №5 (2 балла)
+## Task
 
-Добавить в `Serializer` и `Deserializer` методы `void serialize(Class<?> clazz, Object object)` и `Object deserialize(Class<?> clazz)` соответсвенно, которые внутри себя будут вызывать соответствующий `serialize*` и `deserialize*` в зависимости от переданного `Class<?>` или бросать `IllegalArgumentException`, если для переданный класс не имеет импементации (де)сериализации
+Add to `Serializer` and `Deserializer` the methods `void serialize(Class<?> clazz, Object object)` and `Object deserialize(Class<?> clazz)` respectively, which will internally call the corresponding matching `serialize*` and `deserialize*` depending on the passed `Class<?>` or throwing `IllegalArgumentException` if the passed class has no implementation (de)serialization
 
-# Баллы и сроки
-
-За выполнение всех частей задания можно получить 14 баллов из 10-ти
-
-Мягкий дедлайн: 30.10.22, 23:59
-Жёсткий дедлайн: 06.11.22, 23:59
